@@ -3,8 +3,12 @@ from __future__ import annotations
 import os
 import platform
 import sys
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, Any, cast
+
+import requests
 
 error_text = "\033[1;91mError:\033[0m"
 warning_text = "\033[1;33mWarning:\033[0m"
@@ -70,3 +74,53 @@ database_url = db_make_sqlite_url(sqlite_database_name)
 database_verbose_sql = False
 
 # -/- Database Configuration ---
+
+# --- Hetzner API specifics ---
+
+hetzner_api_url = "https://www.hetzner.com/_resources/app/jsondata/live_data_sb.json"
+hetzner_api_get_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
+
+
+def get_hetzner_api() -> dict[str, Any] | None:
+    """
+    Fetches the live hetzner data, pretending to be a Chrome instance from Windows 10  .
+    """
+
+    response = requests.get(
+        "https://www.hetzner.com/_resources/app/jsondata/live_data_sb.json",
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
+    )
+
+    if not response.ok:
+        return None
+
+    return cast(dict[str, Any], response.json())
+
+
+# Unfortunately, this class has to be here due to the shared dependency with utils.py
+class Datacenters(Enum):
+    frankfurt = "FSN"
+    helsinki = "HEL"
+    nurnberg = "NBG"
+
+    @classmethod
+    def from_data(cls, data: str) -> Datacenters | None:
+        if "FSN" in data:
+            return cls.frankfurt
+        elif "HEL" in data:
+            return cls.helsinki
+        elif "NBG" in data:
+            return cls.nurnberg
+
+        return None
+
+
+@dataclass
+class ServerSpecials:
+    has_IPv4: bool
+    has_GPU: bool
+    has_iNIC: bool
+    has_ECC: bool
+    has_HWR: bool  # Hardware RAID
+
+# -/- Hetzner API specifics ---

@@ -8,12 +8,13 @@ import os
 import sys
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
 from asyncio import AbstractEventLoop, get_event_loop
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from time import perf_counter
 from typing import TypeVar, Callable, Iterable, Any
 
-from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url
+from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters
 from hetzner_server_scouter.version import __version__
 
 
@@ -43,15 +44,24 @@ def path(*args: str | Path) -> Path:
 
 def parse_args() -> Namespace:
     """Parse the command line arguments"""
-    parser = ArgumentParser(prog="hetzner-server-scouter", formatter_class=RawTextHelpFormatter, description="""A tool to watch and get notified about updates on the hetzner server auction""")
+    parser = ArgumentParser(prog="hscout", formatter_class=RawTextHelpFormatter, description="""A tool to watch and get notified about updates on the hetzner server auction""")
 
     # Arguments that you can always add
     parser.add_argument("-v", "--verbose", help="Make the application more verbose", action="count", default=0)
     parser.add_argument("-d", "--debug", help="Debug the application", action="store_true")
 
-    # Mutually exclusive arguments
-    operations = parser.add_mutually_exclusive_group()
-    operations.add_argument("-V", "--version", help="Print the version number and exit", action="store_true")
+    # Subcommands
+    # I don't believe argparse is expressive enough to handle the syntax: `hscout disks --num 4 --size --any 4000 price 40.3 specials --all --ipv4 --gpu` (make --all the default)
+    # `hscout disks --num 4 --size 8000 512 512` → when supplying multiple, disable the --all option
+    # `hscout disks --num 4 --nvme 3 --hdd 1`
+    # `hscout disks --num 4 --hdd all`
+
+    # `hscout ram --num 2 --size 32`
+
+    parser.add_argument("--version", help="outputs the version")
+    parser.add_argument("--tax", type=int, default=19, help="outputs the version")
+
+    parser.add_argument("--datacenter", choices=[it.value for it in Datacenters], help="outputs the version")
 
     if is_testing:
         # Pytest adds extra arguments that don't fit into the defined schema.
@@ -132,6 +142,13 @@ def queue_get_nowait(q: asyncio.Queue[T]) -> T | None:
         return q.get_nowait()
     except Exception:
         return None
+
+
+def datetime_nullable_fromtimestamp(it: int | None) -> datetime | None:
+    if it is None:
+        return None
+
+    return datetime.fromtimestamp(it)
 
 
 # Adapted from https://stackoverflow.com/a/5929165 and https://stackoverflow.com/a/36944992
