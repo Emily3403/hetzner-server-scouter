@@ -140,6 +140,7 @@ eet_tests
 EET_Backend
 lca
 hah.py
+telegram_send.py
 eet_backend
 OftenUsed.py
 BarePythonPipRepo

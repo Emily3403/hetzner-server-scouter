@@ -24,12 +24,12 @@ def print_version() -> None:
     database_string = {"sqlite" in database_url: "SQLite", "mariadb" in database_url: "MariaDB", "postgresql" in database_url: "PostgreSQL"}.get(True, "Unknown Database")
 
     # This is a bit talkative, but I like giving info
-    print(
-        f"This is hetzner-server-scouter with version: {__version__}\n"
-        f"I am running on {os_string}\n"
-        f"I am working in the directory \"{path()}\" to store data\n"
-        f"I am using {database_string} as the database engine\n"
-    )
+    print(f"""This is hscout version {__version__}, running on {os_string}
+
+I am working in the directory \"{path()}\" to store data
+I am using {database_string} as the database engine
+"""
+          )
 
 
 def startup() -> None:
@@ -46,22 +46,31 @@ def parse_args() -> Namespace:
     """Parse the command line arguments"""
     parser = ArgumentParser(prog="hscout", formatter_class=RawTextHelpFormatter, description="""A tool to watch and get notified about updates on the hetzner server auction""")
 
-    # Arguments that you can always add
     parser.add_argument("-v", "--verbose", help="Make the application more verbose", action="count", default=0)
     parser.add_argument("-d", "--debug", help="Debug the application", action="store_true")
+    parser.add_argument("-V", "--version", help="Print the version", action="store_true")
+    parser.add_argument("--tax", metavar="<tax>", type=int, default=19)
 
-    # Subcommands
-    # I don't believe argparse is expressive enough to handle the syntax: `hscout disks --num 4 --size --any 4000 price 40.3 specials --all --ipv4 --gpu` (make --all the default)
-    # `hscout disks --num 4 --size 8000 512 512` → when supplying multiple, disable the --all option
-    # `hscout disks --num 4 --nvme 3 --hdd 1`
-    # `hscout disks --num 4 --hdd all`
+    filter_group = parser.add_argument_group("Filter by")
+    filter_group.add_argument("--price", metavar="<price>", type=int)
+    filter_group.add_argument("--datacenter", choices=[it.value for it in Datacenters])
+    filter_group.add_argument("--ram", metavar="<GB>", type=int)
 
-    # `hscout ram --num 2 --size 32`
+    disk_group = parser.add_argument_group("Disks")
+    disk_group.add_argument("--disk-num", metavar="<num>", type=int)
+    disk_group.add_argument("--disk-size", metavar="<size>", type=int)
+    disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int)
+    disk_group.add_argument("--disk-size-raid1", metavar="<size>", type=int)
+    disk_group.add_argument("--disk-size-raid5", metavar="<size>", type=int)
+    disk_group.add_argument("--disk-size-raid6", metavar="<size>", type=int)
+    disk_group.add_argument("--disk-size-any", metavar="<size>", type=int)
 
-    parser.add_argument("--version", help="outputs the version")
-    parser.add_argument("--tax", type=int, default=19, help="outputs the version")
-
-    parser.add_argument("--datacenter", choices=[it.value for it in Datacenters], help="outputs the version")
+    specials_group = parser.add_argument_group("Specials")
+    specials_group.add_argument("--ipv4", action="store_true")
+    specials_group.add_argument("--gpu", action="store_true")
+    specials_group.add_argument("--inic", action="store_true")
+    specials_group.add_argument("--ecc", action="store_true")
+    specials_group.add_argument("--hwr", action="store_true")
 
     if is_testing:
         # Pytest adds extra arguments that don't fit into the defined schema.

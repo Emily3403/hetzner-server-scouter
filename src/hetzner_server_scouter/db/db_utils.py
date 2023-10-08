@@ -11,7 +11,7 @@ from hetzner_server_scouter.settings import is_testing
 from hetzner_server_scouter.utils import T, KT
 
 
-def _database_transaction(db: DatabaseSession, db_modify_func: Callable[[], None]) -> None:
+def database_transaction(db: DatabaseSession, db_modify_func: Callable[[], Any]) -> None:
     try:
         db_modify_func()
         db.commit()
@@ -24,12 +24,12 @@ def _database_transaction(db: DatabaseSession, db_modify_func: Callable[[], None
 
 
 def add_object_to_database(db: DatabaseSession, it: T) -> T | None:
-    _database_transaction(db, lambda: db.add(it))
+    database_transaction(db, lambda: db.add(it))
     return it
 
 
 def add_objects_to_database(db: DatabaseSession, it: list[T]) -> list[T] | None:
-    _database_transaction(db, lambda: db.add_all(it))
+    database_transaction(db, lambda: db.add_all(it))
     return it
 
 
@@ -87,5 +87,5 @@ def add_or_update_objects_to_database(
         db.add(db_item)
         all_objects.append(db_item)
 
-    _database_transaction(db, lambda: None)
+    database_transaction(db, lambda: None)
     return all_objects
