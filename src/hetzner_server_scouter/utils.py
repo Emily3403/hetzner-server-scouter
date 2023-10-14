@@ -5,17 +5,23 @@ import inspect
 import itertools
 import logging
 import os
+import re
 import sys
-from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
+from argparse import ArgumentParser, Namespace, RawTextHelpFormatter, Action
 from asyncio import AbstractEventLoop, get_event_loop
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from time import perf_counter
-from typing import TypeVar, Callable, Iterable, Any
+from typing import TypeVar, Callable, Iterable, Any, TYPE_CHECKING
+
+import requests
 
 from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters
 from hetzner_server_scouter.version import __version__
+
+if TYPE_CHECKING:
+    from hetzner_server_scouter.db.models import Server
 
 
 def print_version() -> None:
@@ -49,23 +55,32 @@ def parse_args() -> Namespace:
     parser.add_argument("-v", "--verbose", help="Make the application more verbose", action="count", default=0)
     parser.add_argument("-d", "--debug", help="Debug the application", action="store_true")
     parser.add_argument("-V", "--version", help="Print the version", action="store_true")
-    parser.add_argument("--tax", metavar="<tax>", type=int, default=19)
+
+    class Percentage(Action):
+        def __call__(self, parser: ArgumentParser, namespace: Namespace, values: Any, option_string: str | None = None) -> None:
+            if 0 <= values <= 100:
+                setattr(namespace, self.dest, values)
+            else:
+                parser.error(f"{option_string or self.dest} must be between 0 and 100.")
+
+    parser.add_argument("--tax", metavar="<tax>", type=int, action=Percentage, default=19, help="Set the tax rate  [default: 19]")
 
     filter_group = parser.add_argument_group("Filter by")
-    filter_group.add_argument("--price", metavar="<price>", type=int)
+    filter_group.add_argument("--price", metavar="<price>", type=int, help="Set an upper limit for the price of a server")
     filter_group.add_argument("--datacenter", choices=[it.value for it in Datacenters])
-    filter_group.add_argument("--ram", metavar="<GB>", type=int)
+    filter_group.add_argument("--ram", metavar="<GB>", type=int, help="Set the minimum amount of memory")
 
     disk_group = parser.add_argument_group("Disks")
     disk_group.add_argument("--disk-num", metavar="<num>", type=int)
-    disk_group.add_argument("--disk-size", metavar="<size>", type=int)
-    disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int)
+    disk_group.add_argument("--disk-num-quick", metavar="<num>", type=int, help="The number of \"quick\" disks the server should have. A quick disk is either a SATA SSD or NVME")
+    disk_group.add_argument("--disk-size", metavar="<size>", type=int, help="The minimum size of *each* disk")
+    disk_group.add_argument("--disk-size-any", metavar="<size>", type=int, help="The minimum size of any disk")
+    disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int, help="Set the minimum size of the resulting RAID when using all the drives")
     disk_group.add_argument("--disk-size-raid1", metavar="<size>", type=int)
     disk_group.add_argument("--disk-size-raid5", metavar="<size>", type=int)
     disk_group.add_argument("--disk-size-raid6", metavar="<size>", type=int)
-    disk_group.add_argument("--disk-size-any", metavar="<size>", type=int)
 
-    specials_group = parser.add_argument_group("Specials")
+    specials_group = parser.add_argument_group("Require specials")
     specials_group.add_argument("--ipv4", action="store_true")
     specials_group.add_argument("--gpu", action="store_true")
     specials_group.add_argument("--inic", action="store_true")
@@ -233,6 +248,90 @@ class HumanBytes:
 
 # -/- More or less useful functions ---
 
+# --- Hetzner API ---
+
+def get_hetzner_ipv4_price() -> float | None:
+    req = requests.get("https://docs.hetzner.com/de/general/others/ipv4-pricing/")
+    if not req.ok:
+        return None
+
+    it = re.search(r"Primäre IPv4[\w</>\s]*(\d,\d\d)\s*€ pro Monat", req.text)
+    if it is None:
+        return None
+
+    try:
+        return float(it.group(1).replace(",", "."))
+    except Exception:
+        return None
+
+
+def filter_server_with_program_args(server: Server) -> Server | None:
+    if program_args.price and server.calculate_price() > program_args.price:
+        return None
+
+    if program_args.datacenter and Datacenters.from_data(program_args.datacenter) != server.datacenter:
+        return None
+
+    if program_args.ram and server.ram_size < program_args.ram:
+        return None
+
+    # Now, check for the disks
+    num_quick_disks = len(server.nvme_disks) + len(server.sata_disks)
+    if program_args.disk_num and num_quick_disks + len(server.hdd_disks) < program_args.disk_num:
+        return None
+
+    if program_args.disk_num_quick and num_quick_disks < program_args.disk_num_quick:
+        return None
+
+    if program_args.disk_size or program_args.disk_size_any:
+        max_size_seen = 0
+        for disk in server.hdd_disks + server.sata_disks + server.nvme_disks:
+            max_size_seen = max(max_size_seen, disk)
+
+            if program_args.disk_size and disk < program_args.disk_size:
+                return None
+
+        if program_args.disk_size_any and max_size_seen < program_args.disk_size_any:
+            return None
+
+    # Now check if the server satisfies the required raid size
+    all_disks = [it for it in server.hdd_disks + server.sata_disks + server.nvme_disks]
+    if not all_disks:
+        return None
+
+    min_disk_size = min(all_disks)
+
+    raid0_size = sum(all_disks)
+    raid1_size = min_disk_size * len(all_disks) // 2
+    raid5_size = min_disk_size * (len(all_disks) - 1)
+    raid6_size = min_disk_size * (len(all_disks) - 2)
+
+    if program_args.disk_size_raid0 and raid0_size < program_args.disk_size_raid0:
+        return None
+    if program_args.disk_size_raid1 and raid1_size < program_args.disk_size_raid1:
+        return None
+    if program_args.disk_size_raid5 and (len(all_disks) < 3 or raid5_size < program_args.disk_size_raid5):
+        return None
+    if program_args.disk_size_raid6 and (len(all_disks) < 4 or raid6_size < program_args.disk_size_raid6):
+        return None
+
+    # Finally, check for specials
+    if program_args.ipv4 and not server.specials.has_IPv4:
+        return None
+    if program_args.gpu and not server.specials.has_GPU:
+        return None
+    if program_args.inic and not server.specials.has_iNIC:
+        return None
+    if program_args.ecc and not server.specials.has_ECC:
+        return None
+    if program_args.hwr and not server.specials.has_HWR:
+        return None
+
+    return server
+
+
+# -/- Hetzner API ---
+
 T = TypeVar("T")
 U = TypeVar("U")
 KT = TypeVar("KT")
@@ -241,4 +340,5 @@ startup()
 program_args = parse_args()
 logger = create_logger(program_args.verbose)
 
+hetzner_ipv4_price = get_hetzner_ipv4_price()
 DEBUG_ASSERTS = program_args.debug
