@@ -13,6 +13,8 @@ from hetzner_server_scouter.settings import Datacenters, ServerSpecials
 from hetzner_server_scouter.utils import datetime_nullable_fromtimestamp, program_args, hetzner_ipv4_price
 
 
+
+
 class Server(DataBase):  # type:ignore[valid-type, misc]
     __tablename__ = "servers"
 
