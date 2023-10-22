@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session as DatabaseSession
 
 from hetzner_server_scouter.db.db_utils import add_object_to_database, add_objects_to_database
 from hetzner_server_scouter.notify.models import ServerChange, ServerChangeLog, NotificationConfig
+from hetzner_server_scouter.notify.notify_telegram import TelegramAuthenticationData
 from hetzner_server_scouter.settings import error_exit
 
 
@@ -11,8 +12,8 @@ def create_logs_from_changes(db: DatabaseSession, changes: list[ServerChange]) -
     return add_objects_to_database(db, logs)
 
 
-def create_default_notification_config(db: DatabaseSession) -> NotificationConfig | None:
-    return add_object_to_database(db, NotificationConfig(database_version=1))
+def create_notification_config(db: DatabaseSession, timeout: float, telegram_auth_data: TelegramAuthenticationData) -> NotificationConfig | None:
+    return add_object_to_database(db, NotificationConfig(database_version=1, timeout=timeout, telegram_auth_data=telegram_auth_data))
 
 
 def read_notification_config(db: DatabaseSession) -> NotificationConfig:

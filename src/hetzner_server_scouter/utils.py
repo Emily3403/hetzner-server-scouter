@@ -67,15 +67,15 @@ def parse_args() -> Namespace:
 
     filter_group = parser.add_argument_group("Filter by")
     filter_group.add_argument("--price", metavar="<price>", type=int, help="Set an upper limit for the price of a server")
-    filter_group.add_argument("--datacenter", choices=[it.value for it in Datacenters])
+    filter_group.add_argument("--datacenter", choices=[it.value for it in Datacenters], nargs="+")
     filter_group.add_argument("--ram", metavar="<GB>", type=int, help="Set the minimum amount of memory")
 
     disk_group = parser.add_argument_group("Disks")
     disk_group.add_argument("--disk-num", metavar="<num>", type=int)
     disk_group.add_argument("--disk-num-quick", metavar="<num>", type=int, help="The number of \"quick\" disks the server should have. A quick disk is either a SATA SSD or NVME")
-    disk_group.add_argument("--disk-size", metavar="<size>", type=int, help="The minimum size of *each* disk")
-    disk_group.add_argument("--disk-size-any", metavar="<size>", type=int, help="The minimum size of any disk")
-    disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int, help="Set the minimum size of the resulting RAID when using all the drives")
+    disk_group.add_argument("--disk-size", metavar="<size>", type=int, help="The minimum size (in GB) of *each* disk")
+    disk_group.add_argument("--disk-size-any", metavar="<size>", type=int, help="The minimum size (in GB) of any disk")
+    disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int, help="Set the minimum size (in GB) of the resulting RAID when using all the drives")
     disk_group.add_argument("--disk-size-raid1", metavar="<size>", type=int)
     disk_group.add_argument("--disk-size-raid5", metavar="<size>", type=int)
     disk_group.add_argument("--disk-size-raid6", metavar="<size>", type=int)
@@ -175,6 +175,13 @@ def datetime_nullable_fromtimestamp(it: int | None) -> datetime | None:
     return datetime.fromtimestamp(it)
 
 
+def datetime_nullable_fromisoformat(it: str | None) -> datetime | None:
+    if it is None:
+        return None
+
+    return datetime.fromisoformat(it)
+
+
 # Adapted from https://stackoverflow.com/a/5929165 and https://stackoverflow.com/a/36944992
 def debug_time(str_to_put: str | None = None, func_to_call: Any = None, debug_level: int = logging.DEBUG) -> Callable[[Any], Any]:
     def decorator(function: Any) -> Any:
@@ -269,7 +276,7 @@ def filter_server_with_program_args(server: Server) -> Server | None:
     if program_args.price and server.calculate_price() > program_args.price:
         return None
 
-    if program_args.datacenter and Datacenters.from_data(program_args.datacenter) != server.datacenter:
+    if program_args.datacenter and server.datacenter not in {Datacenters.from_data(it) for it in program_args.datacenter}:
         return None
 
     if program_args.ram and server.ram_size < program_args.ram:
@@ -328,6 +335,24 @@ def filter_server_with_program_args(server: Server) -> Server | None:
         return None
 
     return server
+
+
+def hetzner_notify_format_disks(disks: list[int], kind: str) -> list[str]:
+    return [
+        f"{disks.count(disk)}× {f'{round(disk / 1000, 1)}TB' if disk >= 1000 else f'{disk}GB'} ({kind})"
+        for disk in sorted(set(disks))
+    ]
+
+
+def hetzner_notify_calculate_price_time_decrease(time_of_next_price_reduce: datetime | None) -> str:
+    if time_of_next_price_reduce is None:
+        return ""
+
+    time_left_in_s = int((time_of_next_price_reduce - datetime.now()).total_seconds())
+    hours_left = time_left_in_s // 3600
+    minutes_left = (time_left_in_s // 60) % 60
+
+    return f"decreasing in {f'{hours_left}h ' if hours_left else ''}{minutes_left}min"
 
 
 # -/- Hetzner API ---

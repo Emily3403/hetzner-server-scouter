@@ -33,6 +33,9 @@ is_macos = platform.system() == "Darwin"
 # A constant to detect if you are on Windows.
 is_windows = platform.system() == "Windows"
 
+# The Separator
+separator = ""
+
 # -/- General settings ---
 
 
@@ -113,6 +116,20 @@ class Datacenters(Enum):
             return cls.nurnberg
 
         return None
+
+    def __str__(self) -> str:
+        match self:
+            case Datacenters.frankfurt:
+                return "Frankfurt"
+
+            case Datacenters.helsinki:
+                return "Helsinki"
+
+            case Datacenters.nurnberg:
+                return "Nürnberg"
+
+            case _:
+                return "Unknown location"  # type:ignore[unreachable]
 
 
 @dataclass
