@@ -17,6 +17,7 @@ async def _main() -> None:
         exit(0)
 
     with DatabaseSessionMaker() as db:
+        # create_notification_config(TelegramAuthenticationData)
         config = read_notification_config(db)
         servers = await download_server_list(db, config)
 

@@ -19,8 +19,8 @@ def read_servers_to_ids(db: DatabaseSession) -> dict[int, Server]:
     return {it.id: it for it in read_servers(db)}
 
 
-def create_server_from_data(db: DatabaseSession, data: dict[str, Any]) -> Server | None:
-    return add_object_to_database(db, Server.from_data(data))
+def create_server_from_data(db: DatabaseSession, data: dict[str, Any], last_message_id: int | None = None) -> Server | None:
+    return add_object_to_database(db, Server.from_data(data, last_message_id=last_message_id))
 
 
 async def process_changes(db: DatabaseSession, config: NotificationConfig, updated_servers: list[tuple[Server, Server | None]], deleted_servers: list[Server]) -> None:
@@ -46,8 +46,8 @@ async def download_server_list(db: DatabaseSession, config: NotificationConfig) 
     servers_to_update: list[tuple[Server, Server | None]] = []
 
     for data in api_data["server"]:
-        server = Server.from_data(data)
         maybe_server = existing_servers.pop(data["id"], None)
+        server = Server.from_data(data, last_message_id=maybe_server.last_message_id if maybe_server is not None else None)
 
         if server is None or server == maybe_server:
             continue

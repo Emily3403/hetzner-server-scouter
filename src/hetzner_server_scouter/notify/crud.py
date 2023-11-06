@@ -8,8 +8,7 @@ from hetzner_server_scouter.settings import error_exit
 
 
 def create_logs_from_changes(db: DatabaseSession, changes: list[ServerChange]) -> list[ServerChangeLog] | None:
-    logs = [ServerChangeLog(change=change) for change in changes]
-    return add_objects_to_database(db, logs)
+    return add_objects_to_database(db, [ServerChangeLog(change=change) for change in changes])
 
 
 def create_notification_config(db: DatabaseSession, timeout: float, telegram_auth_data: TelegramAuthenticationData) -> NotificationConfig | None:

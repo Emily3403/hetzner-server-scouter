@@ -38,14 +38,15 @@ class Server(DataBase):  # type:ignore[valid-type, misc]
     )
 
     @classmethod
-    def from_data(cls, data: dict[str, Any]) -> Server | None:
+    def from_data(cls, data: dict[str, Any], last_message_id: int | None = None) -> Server | None:
         from hetzner_server_scouter.utils import filter_server_with_program_args
 
         return filter_server_with_program_args(
             Server(
                 id=data["id"], price=data["price"], time_of_next_price_reduce=datetime_nullable_fromtimestamp(None if data["fixed_price"] else data["next_reduce_timestamp"]), datacenter=Datacenters.from_data(data["datacenter"]),
                 cpu_name=data["cpu"], ram_size=data["ram_size"], ram_num=int(data["ram"][0][0]), hdd_disks=data["serverDiskData"]["hdd"], sata_disks=data["serverDiskData"]["sata"], nvme_disks=data["serverDiskData"]["nvme"],
-                specials=ServerSpecials("IPv4" in data["specials"], "GPU" in data["specials"], "iNIC" in data["specials"], "ECC" in data["specials"], "HWR" in data["specials"])
+                specials=ServerSpecials("IPv4" in data["specials"], "GPU" in data["specials"], "iNIC" in data["specials"], "ECC" in data["specials"], "HWR" in data["specials"]),
+                last_message_id=last_message_id
             )
         )
 
