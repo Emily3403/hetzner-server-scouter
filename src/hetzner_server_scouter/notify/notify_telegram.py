@@ -23,8 +23,8 @@ async def telegram_notify_about_changes(db: DatabaseSession, change_logs: list[S
 
     async def send_message(log: ServerChangeLog) -> None:
         msg = await bot.send_message(
-            chat_id=config.telegram_auth_data.chat_id, reply_to_message_id=log.server.last_message_id if log.server is not None else None,
-            text=log.change.to_str() or f"Error producing the message for server {log.server_id}!",
+            chat_id=config.telegram_auth_data.chat_id, text=log.change.to_str() or f"Error producing the message for server {log.server_id}!",
+            reply_to_message_id=log.server.last_message_id if log.server is not None else log.change.new_attr_set.get("last_message_id", None) or log.change.prev_attr_set.get("last_message_id", None),
             read_timeout=config.timeout, parse_mode="html", disable_web_page_preview=True,
         )
 
