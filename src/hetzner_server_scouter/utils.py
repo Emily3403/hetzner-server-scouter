@@ -258,7 +258,7 @@ class HumanBytes:
 # --- Hetzner API ---
 
 def get_hetzner_ipv4_price() -> float | None:
-    req = requests.get("https://docs.hetzner.com/de/general/others/ipv4-pricing/")
+    req = requests.get("https://docs.hetzner.com/de/general/others/ipv4-pricing/", headers={"User-Agent": "Mozilla/5.0"})
     if not req.ok:
         return None
 
