@@ -11,7 +11,7 @@ from sqlalchemy_utils import JSONType
 
 from hetzner_server_scouter.db.db_conf import DataBase
 from hetzner_server_scouter.db.models import Server
-from hetzner_server_scouter.notify.notify_telegram import TelegramAuthenticationData
+from hetzner_server_scouter.notifications.notify_telegram import TelegramAuthenticationData
 from hetzner_server_scouter.settings import separator, Datacenters
 from hetzner_server_scouter.utils import T, hetzner_notify_format_disks, hetzner_notify_calculate_price_time_decrease, datetime_nullable_fromisoformat
 

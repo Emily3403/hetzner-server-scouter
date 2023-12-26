@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 from sqlalchemy import Text
-from sqlalchemy.orm import mapped_column, Mapped, composite
+from sqlalchemy.orm import mapped_column, Mapped, composite, relationship
 from sqlalchemy_utils import JSONType
 
 from hetzner_server_scouter.db.db_conf import DataBase
@@ -12,7 +12,7 @@ from hetzner_server_scouter.settings import Datacenters, ServerSpecials
 from hetzner_server_scouter.utils import datetime_nullable_fromtimestamp, program_args, hetzner_ipv4_price
 
 if TYPE_CHECKING:
-    from hetzner_server_scouter.notify.models import ServerChange
+    from hetzner_server_scouter.notifications.models import ServerChange, ServerChangeLog
 
 
 class Server(DataBase):  # type:ignore[valid-type, misc]
@@ -36,6 +36,8 @@ class Server(DataBase):  # type:ignore[valid-type, misc]
     specials: Mapped[ServerSpecials] = composite(
         mapped_column("has_ipv4"), mapped_column("has_gpu"), mapped_column("has_inic"), mapped_column("has_ecc"), mapped_column("has_hwr")
     )
+
+    change_logs: Mapped[list[ServerChangeLog]] = relationship("ServerChangeLog", back_populates="server")
 
     @classmethod
     def from_data(cls, data: dict[str, Any], last_message_id: int | None = None) -> Server | None:
@@ -76,7 +78,7 @@ class Server(DataBase):  # type:ignore[valid-type, misc]
             self.ram_num == other.ram_num and self.hdd_disks == other.hdd_disks and self.sata_disks == other.sata_disks and self.nvme_disks == other.nvme_disks and self.specials == other.specials
 
     def process_change(self, old: Server | None) -> ServerChange | None:
-        from hetzner_server_scouter.notify.models import ServerChange, ServerChangeType
+        from hetzner_server_scouter.notifications.models import ServerChange, ServerChangeType
 
         if old is None:
             return ServerChange(ServerChangeType.new, self.id, {}, self.to_dict())

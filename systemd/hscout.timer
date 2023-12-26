@@ -1,0 +1,10 @@
+[Unit]
+Description=Hetzner Hunter
+Wants=hetzner-hunter.service
+
+[Timer]
+Unit=hetzner-hunter.service
+OnCalendar=hourly
+
+[Install]
+WantedBy=timers.target

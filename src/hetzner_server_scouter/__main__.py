@@ -2,7 +2,7 @@ import asyncio
 
 from hetzner_server_scouter.db.crud import download_server_list
 from hetzner_server_scouter.db.db_conf import init_database, DatabaseSessionMaker
-from hetzner_server_scouter.notify.crud import read_notification_config
+from hetzner_server_scouter.notifications.crud import read_notification_config
 from hetzner_server_scouter.utils import program_args, print_version
 
 
@@ -17,9 +17,10 @@ async def _main() -> None:
         exit(0)
 
     with DatabaseSessionMaker() as db:
-        # create_notification_config(TelegramAuthenticationData)
         config = read_notification_config(db)
         servers = await download_server_list(db, config)
+
+        # TODO: Move process changes into the main function
 
         _ = servers
 

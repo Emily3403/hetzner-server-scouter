@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session as DatabaseSession
 
 from hetzner_server_scouter.db.db_utils import add_object_to_database, add_objects_to_database
 from hetzner_server_scouter.db.models import Server
-from hetzner_server_scouter.notify.crud import create_logs_from_changes
-from hetzner_server_scouter.notify.models import ServerChange, ServerChangeType, NotificationConfig
-from hetzner_server_scouter.notify.notify_telegram import telegram_notify_about_changes
+from hetzner_server_scouter.notifications.crud import create_logs_from_changes
+from hetzner_server_scouter.notifications.models import ServerChange, ServerChangeType, NotificationConfig, ServerChangeLog
+from hetzner_server_scouter.notifications.notify_telegram import telegram_notify_about_changes
 from hetzner_server_scouter.settings import get_hetzner_api
+from hetzner_server_scouter.utils import get_message_id_from_change_log
 
 
 def read_servers(db: DatabaseSession) -> list[Server]:
@@ -47,7 +48,14 @@ async def download_server_list(db: DatabaseSession, config: NotificationConfig) 
 
     for data in api_data["server"]:
         maybe_server = existing_servers.pop(data["id"], None)
-        server = Server.from_data(data, last_message_id=maybe_server.last_message_id if maybe_server is not None else None)
+        if maybe_server is None:
+            server = Server.from_data(data)
+        elif maybe_server.last_message_id is not None:
+            server = Server.from_data(data, last_message_id=maybe_server.last_message_id)
+        else:
+            # This should be unreachable, but I can't explain the behaviour otherwise
+            log: ServerChangeLog = sorted(maybe_server.change_logs, key=lambda it: it.time)[-1]  # type:ignore[unreachable]
+            server = Server.from_data(data, last_message_id=get_message_id_from_change_log(log.change))
 
         if server is None or server == maybe_server:
             continue

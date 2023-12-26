@@ -22,6 +22,7 @@ from hetzner_server_scouter.version import __version__
 
 if TYPE_CHECKING:
     from hetzner_server_scouter.db.models import Server
+    from hetzner_server_scouter.notifications.models import ServerChange
 
 
 def print_version() -> None:
@@ -251,6 +252,10 @@ class HumanBytes:
 
         n, unit = HumanBytes.format(num)
         return f"{f'{n:.2f}'.rjust(6)} {unit}"
+
+
+def get_message_id_from_change_log(it: ServerChange) -> int | None:
+    return it.new_attr_set.get("last_message_id", None) or it.prev_attr_set.get("last_message_id", None)
 
 
 # -/- More or less useful functions ---

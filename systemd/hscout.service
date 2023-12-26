@@ -1,0 +1,12 @@
+[Unit]
+Description=Hetzner auction hunter
+Wants=hetzner-hunter.timer
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env python3 -m hetzner_server_scouter --price 50
+Environment=TELEGRAM_API_TOKEN=<your bot token>
+Environment=TELEGRAM_CHAT_ID=<your chat id>
+
+[Install]
+WantedBy=multi-user.target
