@@ -8,6 +8,7 @@ from hetzner_server_scouter.utils import program_args, print_version
 
 # TODO: Logs for what happened in the past
 # TODO: Daily summary?
+# TODO: Provide option to deploy systemd script
 
 async def _main() -> None:
     init_database()

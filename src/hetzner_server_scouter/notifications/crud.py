@@ -23,8 +23,6 @@ def read_notification_config(db: DatabaseSession) -> NotificationConfig:
     api_token = os.getenv("TELEGRAM_API_TOKEN")
     chat_id = int(it) if (it := os.getenv("TELEGRAM_CHAT_ID")) is not None else it
 
-    print(api_token, chat_id)
-
     if len(configs) == 1:
         return maybe_update_notification_config(db, configs[0], api_token, chat_id)
 

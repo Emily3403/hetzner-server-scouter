@@ -30,7 +30,8 @@ async def telegram_notify_about_changes(db: DatabaseSession, change_logs: list[S
             reply_to_message_id=last_message_id, read_timeout=config.timeout, parse_mode="html", disable_web_page_preview=True,
         )
 
-        log.server.last_message_id = msg.message_id
+        if log.server is not None:
+            log.server.last_message_id = msg.message_id
 
     messages = [send_message(log) for log in change_logs]
     for message in messages:
