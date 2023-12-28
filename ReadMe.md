@@ -4,6 +4,8 @@
 
 Hetzner Server Scouter is a simple tool to find and get notified about the cheapest Hetzner server that meet your exact requirements.
 
+By default, this tool will only output the found servers to the console. However, you can also get notified via telegram (see below).
+
 ## Available Filters
 
 The following filters are available:
@@ -16,8 +18,8 @@ The following filters are available:
 - Disks
   - Number of disks
   - Size of each disk (or any disk)
-  - Fast storage (SSD / NVME)
-  - Effective RAID size (RAID 0, 1, 5, 6)
+  - Number of Fast storage devices (SSD / NVME)
+  - Effective RAID size (0, 1, 5, 6)
 - Specials 
   - GPU
   - iNIC
