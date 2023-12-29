@@ -85,9 +85,7 @@ hetzner_api_get_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x
 
 
 def get_hetzner_api() -> dict[str, Any] | None:
-    """
-    Fetches the live hetzner data, pretending to be a Chrome instance from Windows 10  .
-    """
+    """Fetches the live hetzner data, pretending to be a Chrome instance from Windows 10."""
 
     response = requests.get(
         "https://www.hetzner.com/_resources/app/jsondata/live_data_sb.json",
@@ -107,8 +105,10 @@ class Datacenters(Enum):
     nurnberg = "NBG"
 
     @classmethod
-    def from_data(cls, data: str) -> Datacenters | None:
-        if "FSN" in data:
+    def from_data(cls, data: str | None) -> Datacenters | None:
+        if data is None:
+            return None
+        elif "FSN" in data:
             return cls.frankfurt
         elif "HEL" in data:
             return cls.helsinki

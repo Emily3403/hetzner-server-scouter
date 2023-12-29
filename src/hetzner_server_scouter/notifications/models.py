@@ -11,9 +11,9 @@ from sqlalchemy_utils import JSONType
 
 from hetzner_server_scouter.db.db_conf import DataBase
 from hetzner_server_scouter.db.models import Server
-from hetzner_server_scouter.notifications.notify_telegram import TelegramAuthenticationData
-from hetzner_server_scouter.settings import separator, Datacenters
-from hetzner_server_scouter.utils import T, hetzner_notify_format_disks, hetzner_notify_calculate_price_time_decrease, datetime_nullable_fromisoformat
+from hetzner_server_scouter.notifications.notify_telegram import TelegramNotificationData
+from hetzner_server_scouter.settings import Datacenters
+from hetzner_server_scouter.utils import hetzner_notify_format_disks, hetzner_notify_calculate_price_time_decrease, datetime_nullable_fromisoformat
 
 
 class ServerChangeType(Enum):
@@ -24,89 +24,104 @@ class ServerChangeType(Enum):
 
 
 @dataclass
+class ServerChangeMessage:
+    server_id: int
+    was_sold: bool
+
+    header: tuple[str, str]
+    url: str
+    price: float
+    price_decreases_in: str
+    specs: str
+    specials: str
+    location: Datacenters | None
+
+    def to_console(self) -> str:
+        if self.was_sold:
+            return f"""{self.header[0]} {self.url} {self.header[1]} for {self.price:.2f}€!"""
+
+        return f"""{self.header[0]} {self.url} {self.header[1]}
+Price: {self.price:.2f}€  {f'({self.price_decreases_in})' if self.price_decreases_in else ''}
+
+Specs:
+{self.specs}
+
+Specials:
+{self.specials}
+
+Location: {self.location}"""
+
+    def to_telegram(self) -> str:
+        if self.was_sold:
+            return f"""{self.header[0]} <a href='{self.url}'>{self.server_id}</a> {self.header[1]} for {self.price:.2f}€!"""
+
+        return f"""{self.header[0]} <a href='{self.url}'>{self.server_id}</a> {self.header[1]}
+<b>Price</b>: {self.price:.2f}€  {f'({self.price_decreases_in})' if self.price_decreases_in else ''}
+
+<u><b>Specs</b></u>
+{self.specs}
+
+<u><b>Specials</b></u>
+{self.specials}
+
+<b>Location:</b> {self.location}"""
+
+
+@dataclass
 class ServerChange:
     kind: ServerChangeType
     server_id: int
     last_message_id: int | None
 
-    prev_attr_set: dict[str, Any]
-    new_attr_set: dict[str, Any]
+    attrs: dict[str, Any]
 
-    def to_str(self) -> str | None:
+    def to_console_str(self) -> str | None:
+        it = self.to_message()
+        if it is None:
+            return it
 
-        server_link = f"<a  href='https://www.hetzner.com/sb?search={self.server_id}'>{self.server_id}</a>"
+        return it.to_console()
 
+    def to_telegram_str(self) -> str | None:
+        it = self.to_message()
+        if it is None:
+            return it
+
+        return it.to_telegram()
+
+    def to_message(self) -> ServerChangeMessage | None:
+
+        was_sold = False
         match self.kind:
             case ServerChangeType.new:
-                message = f"A new server has appeared: {server_link}."
-
+                header = "A new server", "has appeared."
             case ServerChangeType.price_changed:
-                message = f"The price of server {server_link} has changed."
-
+                header = "The price of the server", "has changed."
             case ServerChangeType.sold:
-                return f"The server {server_link} was sold!"
-
+                header = "The server", "was sold"
+                was_sold = True
             case _:
                 return None  # type:ignore[unreachable]
 
-        try:
-            server_description = self.message_server_description()
-        except Exception as e:
-            return message + separator + f"There was an error in generating the server description:\n{e}"
+        _specials: dict[str, bool] = self.attrs.get("specials", {})
+        features = {
+            "GPU": _specials.get("has_GPU", False),
+            "iNIC": _specials.get("has_iNIC", False),
+            "ECC": _specials.get("has_ECC", False),
+            "HWR": _specials.get("has_HWR", False),
+        }
 
-        return message + "\n" + server_description
+        url = f"https://www.hetzner.com/sb?search={self.server_id}"
+        specials = "\n".join([f"{feature}: ✓" for feature, has_it in features.items() if has_it])
+        price = Server._calculate_price(self.attrs.get("price", 0), _specials.get("has_IPv4", True))
+        price_decreases_in = hetzner_notify_calculate_price_time_decrease(datetime_nullable_fromisoformat(self.attrs.get("time_of_next_price_reduce")))
 
-    def message_server_description(self) -> str:
-        from hetzner_server_scouter.db.models import Server
+        location = Datacenters.from_data(self.attrs.get("datacenter"))
+        specs = f"""CPU: {self.attrs.get("cpu_name")}
+RAM: {self.attrs.get("ram_size")}GB ({self.attrs.get("ram_num")}× {self.attrs.get("ram_size", 0) // self.attrs.get("ram_num", 1)}GB)
+Disks: {', '.join(hetzner_notify_format_disks(self.attrs.get("nvme_disks", []), "NVME") + hetzner_notify_format_disks(self.attrs.get("sata_disks", []), "SATA") + hetzner_notify_format_disks(self.attrs.get("hdd_disks", []), "HDD"))}"""
 
-        price_decreases_in = hetzner_notify_calculate_price_time_decrease(datetime_nullable_fromisoformat(self.new_attr_set["time_of_next_price_reduce"]))
-        disk_strings = hetzner_notify_format_disks(self.new_attr_set["nvme_disks"], "NVME") + \
-                       hetzner_notify_format_disks(self.new_attr_set["sata_disks"], "SATA") + \
-                       hetzner_notify_format_disks(self.new_attr_set["hdd_disks"], "HDD")
-
-        specials, specials_strings = self.new_attr_set["specials"], []
-        if not specials.get("has_IPv4", None):
-            specials_strings.append("There is **no** IPv4 included!")
-        if specials.get("has_GPU", None):
-            specials_strings.append("GPU: ✓")
-        if specials.get("has_iNIC", None):
-            specials_strings.append("iNIC: ✓")
-        if specials.get("has_ECC", None):
-            specials_strings.append("ECC Memory: ✓")
-        if specials.get("has_HWR", None):
-            specials_strings.append("Hardware RAID: ✓")
-
-        return f"""<b>Price</b>: {Server._calculate_price(self.new_attr_set["price"], specials["has_IPv4"]):.2f}€  {f'({price_decreases_in})' if price_decreases_in else ''}
-{separator}
-<u><b>Specs</b></u>
-CPU: {self.new_attr_set["cpu_name"]}
-RAM: {self.new_attr_set["ram_size"]}GB ({self.new_attr_set["ram_num"]}× {self.new_attr_set["ram_size"] // self.new_attr_set["ram_num"]}GB)
-Disks: {', '.join(disk_strings)}
-""" + (f"""{separator}
-<u><b>Specials</b></u>
-{chr(10).join(specials_strings)}
-""" if specials_strings else "") + f"""
-<b>Location:</b> {Datacenters.from_data(self.new_attr_set["datacenter"])}
-"""
-
-    def compute_diff_dict(self) -> dict[str, tuple[T | None, T | None]]:
-        diff: dict[str, tuple[T | None, T | None]] = {}
-
-        for key, prev_value in self.prev_attr_set.items():
-            new_value = self.new_attr_set.get(key, None)
-            if new_value == prev_value:
-                continue
-
-            diff[key] = (prev_value, new_value)
-
-        for key, new_value in self.new_attr_set.items():
-            prev_value = self.prev_attr_set.get(key, None)
-            if key in diff or new_value == prev_value:
-                continue
-
-            diff[key] = (prev_value, new_value)
-
-        return diff
+        return ServerChangeMessage(self.server_id, was_sold, header, url, price, price_decreases_in, specs, specials, location)
 
 
 class ServerChangeLog(DataBase):  # type:ignore[valid-type, misc]
@@ -116,7 +131,7 @@ class ServerChangeLog(DataBase):  # type:ignore[valid-type, misc]
     server_id: Mapped[int] = mapped_column(ForeignKey("servers.id"))
     time: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
 
-    change: Mapped[ServerChange] = composite(mapped_column("kind", nullable=False), mapped_column("last_message_id"), server_id, mapped_column("prev_attr_set", JSONType), mapped_column("new_attr_set", JSONType))
+    change: Mapped[ServerChange] = composite(mapped_column("kind", nullable=False), mapped_column("change_server_id"), mapped_column("last_message_id"), mapped_column("attrs", JSONType))
     server: Mapped[Server] = relationship(Server)
 
 
@@ -124,5 +139,4 @@ class NotificationConfig(DataBase):  # type:ignore[valid-type, misc]
     __tablename__ = "notification_config"
 
     database_version: Mapped[int] = mapped_column(primary_key=True)
-    timeout: Mapped[float] = mapped_column()
-    telegram_auth_data: Mapped[TelegramAuthenticationData] = composite(mapped_column("telegram_api_token", nullable=False), mapped_column("telegram_chat_id", nullable=False))
+    telegram_notification_data: Mapped[TelegramNotificationData | None] = composite(TelegramNotificationData, mapped_column("timeout"), mapped_column("telegram_api_token"), mapped_column("telegram_chat_id"))

@@ -10,6 +10,7 @@ from hetzner_server_scouter.utils import program_args, print_version
 # TODO: Logs for what happened in the past
 # TODO: Daily summary?
 # TODO: Provide option to deploy systemd script
+# TODO: Big exception handler and notify via telegram
 
 async def _main() -> None:
     init_database()
@@ -26,10 +27,6 @@ async def _main() -> None:
 
         changes = update_server_list(db, servers)
         await process_changes(db, config, changes)
-
-        # TODO: Move process changes into the main function
-
-        _ = servers
 
 
 def main() -> None:

@@ -14,10 +14,6 @@ def read_servers(db: DatabaseSession) -> list[Server]:
     return list(db.execute(select(Server)).scalars().all())
 
 
-def read_servers_to_ids(db: DatabaseSession, servers: list[Server] | None = None) -> dict[int, Server]:
-    return {it.id: it for it in servers or read_servers(db)}
-
-
 def create_server_from_data(db: DatabaseSession, data: dict[str, Any], last_message_id: int | None = None) -> Server | None:
     return add_object_to_database(db, Server.from_data(data, last_message_id=last_message_id))
 
@@ -32,7 +28,7 @@ async def download_server_list() -> list[Server] | None:
 
 def update_server_list(db: DatabaseSession, _new_servers: list[Server]) -> list[ServerChange]:
     existing_servers = read_servers(db)
-    new_servers = read_servers_to_ids(db, _new_servers)
+    new_servers = {it.id: it for it in _new_servers}
 
     updates = [server.update(db, new_servers.pop(server.id, None)) for server in existing_servers]
     new = [server.new(db) for server in new_servers.values()]

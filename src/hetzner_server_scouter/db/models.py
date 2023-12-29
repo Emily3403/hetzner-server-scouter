@@ -81,13 +81,13 @@ class Server(DataBase):  # type:ignore[valid-type, misc]
         from hetzner_server_scouter.notifications.models import ServerChange, ServerChangeType
 
         db.add(self)
-        return ServerChange(ServerChangeType.new, self.id, None, {}, self.to_dict())
+        return ServerChange(ServerChangeType.new, self.id, None, self.to_dict())
 
     def update(self, db: DatabaseSession, new: Server | None) -> ServerChange | None:
         from hetzner_server_scouter.notifications.models import ServerChange, ServerChangeType
 
         if new is None:
-            change = ServerChange(ServerChangeType.sold, self.id, self.last_message_id, self.to_dict(), {})
+            change = ServerChange(ServerChangeType.sold, self.id, self.last_message_id, self.to_dict())
             db.delete(self)
             return change
 
@@ -95,7 +95,7 @@ class Server(DataBase):  # type:ignore[valid-type, misc]
             return None
 
         self.price = new.price
-        return ServerChange(ServerChangeType.price_changed, self.id, self.last_message_id, new.to_dict(), self.to_dict())
+        return ServerChange(ServerChangeType.price_changed, self.id, self.last_message_id, self.to_dict())
 
     def calculate_price(self) -> float:
         return self._calculate_price(self.price, self.specials.has_IPv4)
