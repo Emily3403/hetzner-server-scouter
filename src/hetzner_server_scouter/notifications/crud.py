@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session as DatabaseSession
 
 from hetzner_server_scouter.db.db_utils import add_object_to_database, add_objects_to_database, database_transaction
 from hetzner_server_scouter.notifications.models import ServerChange, ServerChangeLog, NotificationConfig
-from hetzner_server_scouter.notifications.notify_telegram import TelegramAuthenticationData
+from hetzner_server_scouter.notifications.notify_telegram import TelegramAuthenticationData, telegram_notify_about_changes
 from hetzner_server_scouter.settings import error_exit
 
 
@@ -51,3 +51,11 @@ def maybe_update_notification_config(db: DatabaseSession, config: NotificationCo
 
     database_transaction(db, lambda: None)
     return config
+
+
+async def process_changes(db: DatabaseSession, config: NotificationConfig, changes: list[ServerChange]) -> None:
+    logs = create_logs_from_changes(db, changes)
+    if logs is None:
+        return
+
+    await telegram_notify_about_changes(db, logs, config)

@@ -20,7 +20,6 @@ class ServerChangeType(Enum):
     # Split the updated typed into Created, Updated or Destroyed
     new = 1  # Complete attribute set
     price_changed = 2  # New Price
-    hardware_changed = 3  # Changed attribute set
     sold = 4  # Server ID
 
 
@@ -28,6 +27,7 @@ class ServerChangeType(Enum):
 class ServerChange:
     kind: ServerChangeType
     server_id: int
+    last_message_id: int | None
 
     prev_attr_set: dict[str, Any]
     new_attr_set: dict[str, Any]
@@ -42,9 +42,6 @@ class ServerChange:
 
             case ServerChangeType.price_changed:
                 message = f"The price of server {server_link} has changed."
-
-            case ServerChangeType.hardware_changed:
-                message = f"The hardware of server {server_link} has changed."
 
             case ServerChangeType.sold:
                 return f"The server {server_link} was sold!"
@@ -119,7 +116,7 @@ class ServerChangeLog(DataBase):  # type:ignore[valid-type, misc]
     server_id: Mapped[int] = mapped_column(ForeignKey("servers.id"))
     time: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
 
-    change: Mapped[ServerChange] = composite(mapped_column("kind", nullable=False), server_id, mapped_column("prev_attr_set", JSONType), mapped_column("new_attr_set", JSONType))
+    change: Mapped[ServerChange] = composite(mapped_column("kind", nullable=False), mapped_column("last_message_id"), server_id, mapped_column("prev_attr_set", JSONType), mapped_column("new_attr_set", JSONType))
     server: Mapped[Server] = relationship(Server)
 
 

@@ -258,6 +258,10 @@ def get_message_id_from_change_log(it: ServerChange) -> int | None:
     return it.new_attr_set.get("last_message_id", None) or it.prev_attr_set.get("last_message_id", None)
 
 
+def filter_none(it: list[T | None]) -> list[T]:
+    return [item for item in it if item is not None]
+
+
 # -/- More or less useful functions ---
 
 # --- Hetzner API ---

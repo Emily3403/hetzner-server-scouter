@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 from sqlalchemy import Text
-from sqlalchemy.orm import mapped_column, Mapped, composite, relationship
+from sqlalchemy.orm import Session as DatabaseSession, mapped_column, Mapped, composite, relationship
 from sqlalchemy_utils import JSONType
 
 from hetzner_server_scouter.db.db_conf import DataBase
@@ -77,19 +77,25 @@ class Server(DataBase):  # type:ignore[valid-type, misc]
         return self.id == other.id and self.price == other.price and self.datacenter == other.datacenter and self.cpu_name == other.cpu_name and self.ram_size == other.ram_size and \
             self.ram_num == other.ram_num and self.hdd_disks == other.hdd_disks and self.sata_disks == other.sata_disks and self.nvme_disks == other.nvme_disks and self.specials == other.specials
 
-    def process_change(self, old: Server | None) -> ServerChange | None:
+    def new(self, db: DatabaseSession) -> ServerChange:
         from hetzner_server_scouter.notifications.models import ServerChange, ServerChangeType
 
-        if old is None:
-            return ServerChange(ServerChangeType.new, self.id, {}, self.to_dict())
+        db.add(self)
+        return ServerChange(ServerChangeType.new, self.id, None, {}, self.to_dict())
 
-        if self.price != old.price:
-            return ServerChange(ServerChangeType.price_changed, self.id, old.to_dict(), self.to_dict())
+    def update(self, db: DatabaseSession, new: Server | None) -> ServerChange | None:
+        from hetzner_server_scouter.notifications.models import ServerChange, ServerChangeType
 
-        if any(getattr(self, attr) != getattr(old, attr) for attr in ["datacenter", "cpu_name", "ram_size", "ram_num", "hdd_disks", "sata_disks", "nvme_disks", "specials"]):
-            return ServerChange(ServerChangeType.hardware_changed, self.id, old.to_dict(), self.to_dict())
+        if new is None:
+            change = ServerChange(ServerChangeType.sold, self.id, self.last_message_id, self.to_dict(), {})
+            db.delete(self)
+            return change
 
-        return None
+        if self.price == new.price:
+            return None
+
+        self.price = new.price
+        return ServerChange(ServerChangeType.price_changed, self.id, self.last_message_id, new.to_dict(), self.to_dict())
 
     def calculate_price(self) -> float:
         return self._calculate_price(self.price, self.specials.has_IPv4)
