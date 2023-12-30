@@ -95,6 +95,7 @@ class Server(DataBase):  # type:ignore[valid-type, misc]
             return None
 
         self.price = new.price
+        self.time_of_next_price_reduce = new.time_of_next_price_reduce
         return ServerChange(ServerChangeType.price_changed, self.id, self.last_message_id, self.to_dict())
 
     def calculate_price(self) -> float:

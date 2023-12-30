@@ -18,8 +18,8 @@ def create_server_from_data(db: DatabaseSession, data: dict[str, Any], last_mess
     return add_object_to_database(db, Server.from_data(data, last_message_id=last_message_id))
 
 
-async def download_server_list() -> list[Server] | None:
-    api_data = get_hetzner_api()
+async def download_server_list(_api_data: dict[str, Any] | None = None) -> list[Server] | None:
+    api_data = _api_data or get_hetzner_api()
     if api_data is None:
         return None
 

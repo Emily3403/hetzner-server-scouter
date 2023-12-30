@@ -128,7 +128,7 @@ class ServerChangeLog(DataBase):  # type:ignore[valid-type, misc]
     __tablename__ = "server_change_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    server_id: Mapped[int] = mapped_column(ForeignKey("servers.id"))
+    server_id: Mapped[int] = mapped_column(ForeignKey("servers.id"), nullable=True)
     time: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
 
     change: Mapped[ServerChange] = composite(mapped_column("kind", nullable=False), mapped_column("change_server_id"), mapped_column("last_message_id"), mapped_column("attrs", JSONType))
