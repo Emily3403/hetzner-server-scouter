@@ -25,6 +25,9 @@ class ServerChangeType(Enum):
 
 @dataclass
 class ServerChangeMessage:
+    """
+    This class exists to make formatting the messages easier as e.g. telegram expects HTML.
+    """
     server_id: int
     was_sold: bool
 

@@ -34,8 +34,7 @@ def print_version() -> None:
 
 I am working in the directory \"{path()}\" to store data
 I am using {database_string} as the database engine
-"""
-          )
+""")
 
 
 def startup() -> None:
@@ -50,29 +49,23 @@ def path(*args: str | Path) -> Path:
 
 def parse_args() -> Namespace:
     """Parse the command line arguments"""
-    parser = ArgumentParser(prog="hscout", formatter_class=RawTextHelpFormatter, description="""A tool to watch and get notified about updates on the hetzner server auction""")
+    parser = ArgumentParser(prog="hscout", formatter_class=lambda prog: RawTextHelpFormatter(prog, max_help_position=31), description="""A tool to watch and get notified about updates on the hetzner server auction""")
 
     parser.add_argument("-v", "--verbose", help="Make the application more verbose", action="count", default=0)
-    parser.add_argument("-d", "--debug", help="Debug the application", action="store_true")
+    parser.add_argument("-d", "--debug", help="Debug the application (triggers debug asserts and highest log level)", action="store_true")
     parser.add_argument("-V", "--version", help="Print the version", action="store_true")
-
-    class Percentage(Action):
-        def __call__(self, parser: ArgumentParser, namespace: Namespace, values: Any, option_string: str | None = None) -> None:
-            if 0 <= values <= 100:
-                setattr(namespace, self.dest, values)
-            else:
-                parser.error(f"{option_string or self.dest} must be between 0 and 100.")
 
     parser.add_argument("--tax", metavar="<tax>", type=int, action=Percentage, default=19, help="Set the tax rate  [default: 19]")
 
-    filter_group = parser.add_argument_group("Filter by")
-    filter_group.add_argument("--price", metavar="<price>", type=int, help="Set an upper limit for the price of a server")
-    filter_group.add_argument("--datacenter", choices=[it.value for it in Datacenters], nargs="+")
-    filter_group.add_argument("--ram", metavar="<GB>", type=int, help="Set the minimum amount of memory")
+    filter_group = parser.add_argument_group("Available Filters")
+    filter_group.add_argument("--price", metavar="<price>", type=int, help="Filter by price (in €)")
+    filter_group.add_argument("--cpu", type=str, help="Filter by CPU model")
+    filter_group.add_argument("--datacenter", choices=[it.value for it in Datacenters], nargs="+", help="Filter by datacenter")
+    filter_group.add_argument("--ram", metavar="<GB>", type=int, help="Filter by RAM size")
 
     disk_group = parser.add_argument_group("Disks")
-    disk_group.add_argument("--disk-num", metavar="<num>", type=int)
-    disk_group.add_argument("--disk-num-quick", metavar="<num>", type=int, help="The number of \"quick\" disks the server should have. A quick disk is either a SATA SSD or NVME")
+    disk_group.add_argument("--disk-num", metavar="<num>", type=int, help="The number of disks the server should have")
+    disk_group.add_argument("--disk-num-quick", metavar="<num>", type=int, help="The number of SATA / NVME disks the server should have")
     disk_group.add_argument("--disk-size", metavar="<size>", type=int, help="The minimum size (in GB) of *each* disk")
     disk_group.add_argument("--disk-size-any", metavar="<size>", type=int, help="The minimum size (in GB) of any disk")
     disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int, help="Set the minimum size (in GB) of the resulting RAID when using all the drives")
@@ -212,6 +205,14 @@ def debug_time(str_to_put: str | None = None, func_to_call: Any = None, debug_le
     return decorator
 
 
+class Percentage(Action):
+    def __call__(self, parser: ArgumentParser, namespace: Namespace, values: Any, option_string: str | None = None) -> None:
+        if 0 <= values <= 100:
+            setattr(namespace, self.dest, values)
+        else:
+            parser.error(f"{option_string or self.dest} must be between 0 and 100.")
+
+
 # Copied and adapted from https://stackoverflow.com/a/63839503
 class HumanBytes:
     @staticmethod
@@ -278,6 +279,9 @@ def get_hetzner_ipv4_price() -> float | None:
 
 def filter_server_with_program_args(server: Server) -> Server | None:
     if program_args.price and server.calculate_price() > program_args.price:
+        return None
+
+    if program_args.cpu and program_args.cpu.lower() not in server.cpu_name.lower():
         return None
 
     if program_args.datacenter and server.datacenter not in {Datacenters.from_data(it) for it in program_args.datacenter}:

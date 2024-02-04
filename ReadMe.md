@@ -10,7 +10,8 @@ By default, this tool will only output the found servers to the console. However
 
 The following filters are available:
 - Price
-- RAM
+- CPU name
+- RAM size
 - Datacenter 
   - Frankfurt
   - Helsinki
