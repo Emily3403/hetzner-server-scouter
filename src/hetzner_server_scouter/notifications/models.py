@@ -11,7 +11,6 @@ from sqlalchemy_utils import JSONType
 
 from hetzner_server_scouter.db.db_conf import DataBase
 from hetzner_server_scouter.db.models import Server
-from hetzner_server_scouter.notifications.notify_telegram import TelegramNotificationData
 from hetzner_server_scouter.settings import Datacenters
 from hetzner_server_scouter.utils import hetzner_notify_format_disks, hetzner_notify_calculate_price_time_decrease, datetime_nullable_fromisoformat
 
@@ -136,10 +135,3 @@ class ServerChangeLog(DataBase):  # type:ignore[valid-type, misc]
 
     change: Mapped[ServerChange] = composite(mapped_column("kind", nullable=False), mapped_column("change_server_id"), mapped_column("last_message_id"), mapped_column("attrs", JSONType))
     server: Mapped[Server] = relationship(Server)
-
-
-class NotificationConfig(DataBase):  # type:ignore[valid-type, misc]
-    __tablename__ = "notification_config"
-
-    database_version: Mapped[int] = mapped_column(primary_key=True)
-    telegram_notification_data: Mapped[TelegramNotificationData | None] = composite(TelegramNotificationData, mapped_column("timeout"), mapped_column("telegram_api_token"), mapped_column("telegram_chat_id"))

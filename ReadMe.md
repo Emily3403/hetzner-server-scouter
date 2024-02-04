@@ -59,7 +59,7 @@ To obtain the Chat ID, send a message to your bot follow [this](https://stackove
 
 Usually, you don't want to run this tool manually. Instead, you want to run it periodically and get notified if a new server is available.
 
-Hetzner-Server-Scouter is a user service. To install it, copy the `systemd/hscout.service` and `systemd/hscout.timer` file into `$XDG_CONFIG_DIR/systemd/user` and enable it:
+Hetzner-Server-Scouter is a user service. To install it run the `bin/install-systemd.sh` or copy the `systemd/hscout.service` and `systemd/hscout.timer` file into `$XDG_CONFIG_DIR/systemd/user` and enable it:
 
 ```bash
 systemctl --user daemon-reload
