@@ -18,7 +18,7 @@ The following filters are available:
   - Nürnberg
 - Disks
   - Number of disks
-  - Size of each disk (or any disk)
+  - Size of each (or any) disk
   - Number of Fast storage devices (SSD / NVME)
   - Effective RAID size (0, 1, 5, 6)
 - Specials 
@@ -42,9 +42,9 @@ hscout --disk-num 3 --disk-size-raid5 12000
 hscout --gpu --ecc --hwr
 ```
 
-### Notifications
+## Notifications
 
-You can get notified when a new server is available. For now, only telegram support is available but this can be easily expanded in the future (pull requests welcome).
+You can get notified when a new server is available. For now, only telegram support is available but this can be easily expanded in the future (pull requests welcome). Simply add the handler `process_changes` function in the `src/hetzner_server_scouter/notifications/crud.py` file.
 
 To enable telegram notifications, you need to create a [telegram bot](https://core.telegram.org/bots/tutorial). Then, you need to set the following environment variables:
 
@@ -55,7 +55,7 @@ TELEGRAM_CHAT_ID=<your chat id>
 
 To obtain the Chat ID, send a message to your bot follow [this](https://stackoverflow.com/a/32572159/11163194) guide.
 
-### Systemd
+## Systemd Deployment
 
 Usually, you don't want to run this tool manually. Instead, you want to run it periodically and get notified if a new server is available.
 

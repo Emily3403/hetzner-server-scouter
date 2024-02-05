@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import os
-from dataclasses import dataclass
+import re
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session as DatabaseSession
 from telegram import Bot
 
 from hetzner_server_scouter.db.db_utils import database_transaction
+from hetzner_server_scouter.settings import error_text
+from hetzner_server_scouter.utils import RateLimiter, print_exception
 
 if TYPE_CHECKING:
     from hetzner_server_scouter.notifications.models import ServerChangeLog
 
-
-# TODO: Enforce a 30/s and 20/min Rate limit
 
 async def telegram_notify_about_changes(db: DatabaseSession, change_logs: list[ServerChangeLog]) -> None:
     api_token = os.getenv("TELEGRAM_API_TOKEN")
@@ -24,20 +24,33 @@ async def telegram_notify_about_changes(db: DatabaseSession, change_logs: list[S
         return
 
     bot = Bot(token=api_token)
+    limiter = RateLimiter(rate_s=1, rate_m=20)
 
     async def send_message(log: ServerChangeLog) -> None:
         last_message_id = log.server.last_message_id if log.server is not None else log.change.attrs.get("last_message_id")
 
-        while True:
+        i = 0
+        while i < 20:
             try:
+                await limiter.wait()
                 msg = await bot.send_message(
                     chat_id=chat_id, text=log.change.to_telegram_str() or f"Error producing the message for server {log.server_id}!",
                     reply_to_message_id=last_message_id, read_timeout=10, parse_mode="html", disable_web_page_preview=True,
                 )
                 break
 
-            except Exception:
-                await asyncio.sleep(1)
+            except Exception as ex:
+                i += 1
+
+                if (it := re.match(r"Flood control exceeded. Retry in (\d+) seconds", str(ex))) is not None:
+                    to_sleep = int(it.group(1)) + 1
+                    print(f"{error_text} Telegram flood control exceeded. Retrying in {to_sleep} seconds...", flush=True)
+                    await asyncio.sleep(to_sleep)
+                    await notify_exception_via_telegram(ex)
+
+                else:
+                    print_exception(ex)
+                    await asyncio.sleep(5)
 
         if log.server is not None:
             log.server.last_message_id = msg.message_id

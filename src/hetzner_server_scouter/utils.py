@@ -9,15 +9,17 @@ import re
 import sys
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter, Action
 from asyncio import AbstractEventLoop, get_event_loop
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from time import perf_counter
+from traceback import format_exception
 from typing import TypeVar, Callable, Iterable, Any, TYPE_CHECKING
 
 import requests
 
-from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters
+from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters, error_text
 from hetzner_server_scouter.version import __version__
 
 if TYPE_CHECKING:
@@ -46,6 +48,8 @@ def path(*args: str | Path) -> Path:
     """Prepend the args with the dedicated eet_backend directory"""
     return Path(working_dir_location, *args)
 
+def print_exception(ex: Exception) -> None:
+    print(f"{error_text} An unexpected error has occured:\n{chr(10).join(format_exception(ex))}", flush=True)
 
 def parse_args() -> Namespace:
     """Parse the command line arguments"""
@@ -252,6 +256,28 @@ class HumanBytes:
 
         n, unit = HumanBytes.format(num)
         return f"{f'{n:.2f}'.rjust(6)} {unit}"
+
+
+@dataclass
+class RateLimiter:
+    rate_s: int
+    rate_m: int
+
+    tokens_s: list[float] = field(default_factory=list)
+    tokens_m: list[float] = field(default_factory=list)
+
+    async def wait(self) -> None:
+        while len(self.tokens_s) >= self.rate_s or len(self.tokens_m) >= self.rate_m:
+            # Remove expired tokens
+            now = perf_counter()
+            self.tokens_s = [t for t in self.tokens_s if t > now - 1]
+            self.tokens_m = [t for t in self.tokens_m if t > now - 60]
+
+            await asyncio.sleep(0.1)
+
+        now = perf_counter()
+        self.tokens_s.append(now)
+        self.tokens_m.append(now)
 
 
 def filter_none(it: list[T | None]) -> list[T]:

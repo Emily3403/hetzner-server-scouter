@@ -1,9 +1,9 @@
 [Unit]
 Description=Hetzner Hunter
-Wants=hetzner-hunter.service
+Wants=hscout.service
 
 [Timer]
-Unit=hetzner-hunter.service
+Unit=hscout.service
 OnCalendar=hourly
 
 [Install]

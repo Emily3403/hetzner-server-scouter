@@ -1,6 +1,6 @@
 [Unit]
 Description=Hetzner auction hunter
-Wants=hetzner-hunter.timer
+Wants=hscout.timer
 
 [Service]
 Type=oneshot
