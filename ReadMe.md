@@ -66,4 +66,10 @@ systemctl --user daemon-reload
 systemctl --user enable hscout.timer
 ```
 
+Make sure to enable lingering for your user. Otherwise, the service will only be started once you log in.
+
+```bash
+loginctl enable-linger $USER
+```
+
 This will then run the tool every hour. You can change this by editing the `hscout.timer` file and adjusting the `OnCalendar` property. See the [systemd documentation](https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html#OnCalendar=) for more information.
