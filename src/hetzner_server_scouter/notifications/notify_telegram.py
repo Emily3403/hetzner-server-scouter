@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+from traceback import format_exception
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session as DatabaseSession
@@ -49,7 +50,7 @@ async def telegram_notify_about_changes(db: DatabaseSession, change_logs: list[S
                     await notify_exception_via_telegram(ex)
 
                 else:
-                    print_exception(ex)
+                    await notify_exception_via_telegram(ex)
                     await asyncio.sleep(5)
 
         if log.server is not None:
@@ -75,7 +76,8 @@ async def notify_exception_via_telegram(ex: Exception) -> None:
     i = 0
     while i < 5:
         try:
-            await bot.send_message(chat_id=chat_id, text=f"An exception has occurred:\n```\n{ex}\n```", read_timeout=10, parse_mode="markdown")
+            print_exception(ex)
+            await bot.send_message(chat_id=chat_id, text=f"{error_text} An unexpected error has occured:\n```{chr(10).join(format_exception(ex))}```", parse_mode="markdown")
             break
 
         except Exception:
