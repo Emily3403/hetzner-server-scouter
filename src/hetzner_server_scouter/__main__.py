@@ -1,11 +1,10 @@
 import asyncio
-from traceback import format_exception
 
 from hetzner_server_scouter.db.crud import download_server_list, update_server_list
 from hetzner_server_scouter.db.db_conf import init_database, DatabaseSessionMaker
 from hetzner_server_scouter.notifications.crud import process_changes
 from hetzner_server_scouter.notifications.notify_telegram import notify_exception_via_telegram
-from hetzner_server_scouter.settings import error_exit, error_text
+from hetzner_server_scouter.settings import error_exit
 from hetzner_server_scouter.utils import program_args, print_version, print_exception
 
 

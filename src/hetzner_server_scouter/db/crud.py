@@ -1,7 +1,6 @@
-from typing import Any
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DatabaseSession
+from typing import Any
 
 from hetzner_server_scouter.db.db_utils import add_object_to_database, database_transaction
 from hetzner_server_scouter.db.models import Server

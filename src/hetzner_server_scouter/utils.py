@@ -6,6 +6,7 @@ import itertools
 import logging
 import os
 import re
+import requests
 import sys
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter, Action
 from asyncio import AbstractEventLoop, get_event_loop
@@ -16,8 +17,6 @@ from pathlib import Path
 from time import perf_counter
 from traceback import format_exception
 from typing import TypeVar, Callable, Iterable, Any, TYPE_CHECKING
-
-import requests
 
 from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters, error_text
 from hetzner_server_scouter.version import __version__
@@ -48,8 +47,10 @@ def path(*args: str | Path) -> Path:
     """Prepend the args with the dedicated eet_backend directory"""
     return Path(working_dir_location, *args)
 
+
 def print_exception(ex: Exception) -> None:
     print(f"{error_text} An unexpected error has occured:\n{chr(10).join(format_exception(ex))}", flush=True)
+
 
 def parse_args() -> Namespace:
     """Parse the command line arguments"""

@@ -3,11 +3,10 @@ from __future__ import annotations
 import asyncio
 import os
 import re
-from traceback import format_exception
-from typing import TYPE_CHECKING
-
 from sqlalchemy.orm import Session as DatabaseSession
 from telegram import Bot
+from traceback import format_exception
+from typing import TYPE_CHECKING
 
 from hetzner_server_scouter.db.db_utils import database_transaction
 from hetzner_server_scouter.settings import error_text

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, TYPE_CHECKING
-
 from sqlalchemy import Text
 from sqlalchemy.orm import Session as DatabaseSession, mapped_column, Mapped, composite, relationship
 from sqlalchemy_utils import JSONType
+from typing import Any, TYPE_CHECKING
 
 from hetzner_server_scouter.db.db_conf import DataBase
 from hetzner_server_scouter.settings import Datacenters, ServerSpecials

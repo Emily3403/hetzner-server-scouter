@@ -3,11 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
-
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, composite, relationship
 from sqlalchemy_utils import JSONType
+from typing import Any
 
 from hetzner_server_scouter.db.db_conf import DataBase
 from hetzner_server_scouter.db.models import Server

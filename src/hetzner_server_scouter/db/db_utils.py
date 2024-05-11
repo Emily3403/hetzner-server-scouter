@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from logging import error
-from typing import Type, Any, Callable
-
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DatabaseSession
+from typing import Type, Any, Callable
 
 from hetzner_server_scouter.db.db_conf import DB_T
 from hetzner_server_scouter.settings import is_testing

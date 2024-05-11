@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import os
 import platform
+import requests
 import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import NoReturn, Any, cast
-
-import requests
 
 error_text = "\033[1;91mError:\033[0m"
 warning_text = "\033[1;33mWarning:\033[0m"

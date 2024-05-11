@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import os
-from typing import Type, TypeVar
-
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import declarative_base, DeclarativeMeta, sessionmaker
+from typing import Type, TypeVar
 
 from hetzner_server_scouter.settings import error_exit, database_url, db_make_sqlite_url, sqlite_database_name, database_verbose_sql, warning_text
 from hetzner_server_scouter.utils import path
