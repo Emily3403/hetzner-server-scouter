@@ -87,7 +87,7 @@ def get_hetzner_api() -> dict[str, Any] | None:
     """Fetches the live hetzner data, pretending to be a Chrome instance from Windows 10."""
 
     response = requests.get(
-        "https://www.hetzner.com/_resources/app/jsondata/live_data_sb.json",
+        "https://www.hetzner.com/_resources/app/data/app/live_data_sb_EUR.json",
         headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
     )
 

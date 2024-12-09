@@ -2,21 +2,22 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import itertools
 import logging
 import os
 import re
-import requests
-import sys
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter, Action
 from asyncio import AbstractEventLoop, get_event_loop
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from time import perf_counter
 from traceback import format_exception
 from typing import TypeVar, Callable, Iterable, Any, TYPE_CHECKING
+
+import itertools
+import requests
+import sys
+from time import perf_counter
 
 from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters, error_text
 from hetzner_server_scouter.version import __version__
@@ -74,6 +75,7 @@ def parse_args() -> Namespace:
     disk_group.add_argument("--disk-size", metavar="<size>", type=int, help="The minimum size (in GB) of *each* disk")
     disk_group.add_argument("--disk-size-any", metavar="<size>", type=int, help="The minimum size (in GB) of any disk")
     disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int, help="Set the minimum size (in GB) of the resulting RAID when using all the drives")
+    disk_group.add_argument("--disk-size-redundant", metavar="<size>", type=int, help="Set the minimum size of a redundant disk configuration if you don't care about if it is 1 / 5 / 6")
     disk_group.add_argument("--disk-size-raid1", metavar="<size>", type=int)
     disk_group.add_argument("--disk-size-raid5", metavar="<size>", type=int)
     disk_group.add_argument("--disk-size-raid6", metavar="<size>", type=int)
@@ -348,14 +350,19 @@ def filter_server_with_program_args(server: Server) -> Server | None:
     raid5_size = min_disk_size * (len(all_disks) - 1)
     raid6_size = min_disk_size * (len(all_disks) - 2)
 
-    if program_args.disk_size_raid0 and raid0_size < program_args.disk_size_raid0:
+    cant_raid1 = lambda size: size and raid1_size < size
+    cant_raid5 = lambda size: size and (len(all_disks) < 3 or raid5_size < size)
+    cant_raid6 = lambda size: size and (len(all_disks) < 4 or raid6_size < size)
+
+    if (it := program_args.disk_size_redundant) and cant_raid1(it) and cant_raid5(it) and cant_raid6(it):
         return None
-    if program_args.disk_size_raid1 and raid1_size < program_args.disk_size_raid1:
-        return None
-    if program_args.disk_size_raid5 and (len(all_disks) < 3 or raid5_size < program_args.disk_size_raid5):
-        return None
-    if program_args.disk_size_raid6 and (len(all_disks) < 4 or raid6_size < program_args.disk_size_raid6):
-        return None
+    else:
+        if cant_raid1(program_args.disk_size_raid1):
+            return None
+        if cant_raid5(program_args.disk_size_raid5):
+            return None
+        if cant_raid6(program_args.disk_size_raid6):
+            return None
 
     # Finally, check for specials
     if program_args.ipv4 and not server.specials.has_IPv4:
