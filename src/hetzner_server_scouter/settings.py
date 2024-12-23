@@ -71,6 +71,7 @@ def db_make_postgres_url(user: str, pw: str, db_name: str) -> str:
 # First, the database url is tried. If it doesn't work, the `sqlite_database_name` together with the working dir is tried. If both error, the program is halted.
 sqlite_database_name = "state.db"
 database_url = db_make_sqlite_url(sqlite_database_name)
+print(database_url)
 
 # If set to True all the emitted SQL is echo'd back
 database_verbose_sql = False

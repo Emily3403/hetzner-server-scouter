@@ -29,7 +29,7 @@ def update_server_list(db: DatabaseSession, _new_servers: list[Server]) -> list[
     existing_servers = read_servers(db)
     new_servers = {it.id: it for it in _new_servers}
 
-    updates = [server.update(db, new_servers.pop(server.id, None)) for server in existing_servers]
+    updates = [server.update(db, new_servers.pop(server.id)) for server in existing_servers]
     new = [server.new(db) for server in new_servers.values()]
 
     database_transaction(db, lambda: None)
