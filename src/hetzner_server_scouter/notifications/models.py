@@ -3,14 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any
+
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, composite, relationship
 from sqlalchemy_utils import JSONType
-from typing import Any
 
 from hetzner_server_scouter.db.db_conf import DataBase
 from hetzner_server_scouter.db.models import Server
-from hetzner_server_scouter.settings import Datacenters
+from hetzner_server_scouter.settings import Datacenters, lf
 from hetzner_server_scouter.utils import hetzner_notify_format_disks, hetzner_notify_calculate_price_time_decrease, datetime_nullable_fromisoformat
 
 
@@ -46,10 +47,7 @@ Price: {self.price:.2f}€  {f'({self.price_decreases_in})' if self.price_decrea
 
 Specs:
 {self.specs}
-
-Specials:
-{self.specials}
-
+{f'{lf}Specials:{lf}{self.specials}{lf}' if self.specials else ''}
 Location: {self.location}"""
 
     def to_telegram(self) -> str:
@@ -61,10 +59,7 @@ Location: {self.location}"""
 
 <u><b>Specs</b></u>
 {self.specs}
-
-<u><b>Specials</b></u>
-{self.specials}
-
+{f'{lf}<u><b>Specials</b></u>{lf}{self.specials}{lf}' if self.specials else ''}
 <b>Location:</b> {self.location}"""
 
 
@@ -108,19 +103,23 @@ class ServerChange:
         features = {
             "GPU": _specials.get("has_GPU", False),
             "iNIC": _specials.get("has_iNIC", False),
-            "ECC": _specials.get("has_ECC", False),
             "HWR": _specials.get("has_HWR", False),
         }
 
-        url = f"https://www.hetzner.com/sb?search={self.server_id}"
+        url = f"https://www.hetzner.com/sb/#search={self.server_id}"
         specials = "\n".join([f"{feature}: ✓" for feature, has_it in features.items() if has_it])
         price = Server._calculate_price(self.attrs.get("price", 0), _specials.get("has_IPv4", True))
         price_decreases_in = hetzner_notify_calculate_price_time_decrease(datetime_nullable_fromisoformat(self.attrs.get("time_of_next_price_reduce")))
 
         location = Datacenters.from_data(self.attrs.get("datacenter"))
         specs = f"""CPU: {self.attrs.get("cpu_name")}
-RAM: {self.attrs.get("ram_size")}GB ({self.attrs.get("ram_num")}× {self.attrs.get("ram_size", 0) // self.attrs.get("ram_num", 1)}GB)
-Disks: {', '.join(hetzner_notify_format_disks(self.attrs.get("nvme_disks", []), "NVME") + hetzner_notify_format_disks(self.attrs.get("sata_disks", []), "SATA") + hetzner_notify_format_disks(self.attrs.get("hdd_disks", []), "HDD"))}"""
+RAM: {self.attrs.get("ram_size")}GB ({self.attrs.get("ram_num")}× {self.attrs.get("ram_size", 0) // self.attrs.get("ram_num", 1)}GB{', ECC' if self.attrs.get('ram_is_ecc') else ''})
+Disks: {', '.join(
+            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("hdd", []), "HDD") +
+            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("ssd", []), "SSD") +
+            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("enterprise_hdd", []), "Enterprise HDD") +
+            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("enterprise_ssd", []), "Enterprise SSD")
+        )}"""
 
         return ServerChangeMessage(self.server_id, was_sold, header, url, price, price_decreases_in, specs, specials, location)
 

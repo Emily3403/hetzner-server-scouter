@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import os
 import platform
-import requests
 import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import NoReturn, Any, cast
+
+import requests
 
 error_text = "\033[1;91mError:\033[0m"
 warning_text = "\033[1;33mWarning:\033[0m"
@@ -34,6 +35,7 @@ is_windows = platform.system() == "Windows"
 
 # The Separator
 separator = ""
+lf = "\n"  # Used in nested f-strings because python3.10 doesn't have support for \n
 
 # -/- General settings ---
 
@@ -71,7 +73,6 @@ def db_make_postgres_url(user: str, pw: str, db_name: str) -> str:
 # First, the database url is tried. If it doesn't work, the `sqlite_database_name` together with the working dir is tried. If both error, the program is halted.
 sqlite_database_name = "state.db"
 database_url = db_make_sqlite_url(sqlite_database_name)
-print(database_url)
 
 # If set to True all the emitted SQL is echo'd back
 database_verbose_sql = False
@@ -137,7 +138,6 @@ class ServerSpecials:
     has_IPv4: bool
     has_GPU: bool
     has_iNIC: bool
-    has_ECC: bool
     has_HWR: bool  # Hardware RAID
 
 # -/- Hetzner API specifics ---
