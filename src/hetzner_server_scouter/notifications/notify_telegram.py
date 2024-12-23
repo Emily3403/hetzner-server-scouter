@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 import os
 import re
-from sqlalchemy.orm import Session as DatabaseSession
-from telegram import Bot
 from traceback import format_exception
 from typing import TYPE_CHECKING
+
+from sqlalchemy.orm import Session as DatabaseSession
+from telegram import Bot
 
 from hetzner_server_scouter.db.db_utils import database_transaction
 from hetzner_server_scouter.settings import error_text
@@ -75,10 +76,12 @@ async def notify_exception_via_telegram(ex: Exception) -> None:
     i = 0
     while i < 5:
         try:
-            print_exception(ex)
-            await bot.send_message(chat_id=chat_id, text=f"{error_text} An unexpected error has occured:\n```{chr(10).join(format_exception(ex))}```", parse_mode="markdown")
+            text = f"An unexpected error has occured:\n```{chr(10).join(format_exception(ex))[:4096 - 40]}```"
+            await bot.send_message(chat_id=chat_id, text=text[:4096], parse_mode="markdown")
             break
 
-        except Exception:
+        except Exception as ex2:
+            print(f"\n\n!!!\n{error_text}Trying to send the telegram notification failed!\n!!!\n\n")
+            print_exception(ex2)
             i += 1
             await asyncio.sleep(1)

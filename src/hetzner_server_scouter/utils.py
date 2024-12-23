@@ -2,22 +2,22 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import itertools
 import logging
 import os
 import re
+import sys
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter, Action
 from asyncio import AbstractEventLoop, get_event_loop
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
+from time import perf_counter
 from traceback import format_exception
 from typing import TypeVar, Callable, Iterable, Any, TYPE_CHECKING
 
-import itertools
 import requests
-import sys
-from time import perf_counter
 
 from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters, error_text
 from hetzner_server_scouter.version import __version__
@@ -72,6 +72,7 @@ def parse_args() -> Namespace:
     disk_group = parser.add_argument_group("Disks")
     disk_group.add_argument("--disk-num", metavar="<num>", type=int, help="The number of disks the server should have")
     disk_group.add_argument("--disk-num-quick", metavar="<num>", type=int, help="The number of SATA / NVME disks the server should have")
+    disk_group.add_argument("--disk-enterprise", action="store_true", help="If all disks should be enterprise grade")
     disk_group.add_argument("--disk-size", metavar="<size>", type=int, help="The minimum size (in GB) of *each* disk")
     disk_group.add_argument("--disk-size-any", metavar="<size>", type=int, help="The minimum size (in GB) of any disk")
     disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int, help="Set the minimum size (in GB) of the resulting RAID when using all the drives")
@@ -320,8 +321,8 @@ def filter_server_with_program_args(server: Server) -> Server | None:
         return None
 
     # Now, check for the disks
-    num_quick_disks = len(server.nvme_disks) + len(server.sata_disks)
-    if program_args.disk_num and num_quick_disks + len(server.hdd_disks) < program_args.disk_num:
+    num_quick_disks = len(server.all_ssds)
+    if program_args.disk_num and num_quick_disks + len(server.all_hdds) < program_args.disk_num:
         return None
 
     if program_args.disk_num_quick and num_quick_disks < program_args.disk_num_quick:
@@ -329,7 +330,7 @@ def filter_server_with_program_args(server: Server) -> Server | None:
 
     if program_args.disk_size or program_args.disk_size_any:
         max_size_seen = 0
-        for disk in server.hdd_disks + server.sata_disks + server.nvme_disks:
+        for disk in server.all_disks:
             max_size_seen = max(max_size_seen, disk)
 
             if program_args.disk_size and disk < program_args.disk_size:
@@ -339,30 +340,34 @@ def filter_server_with_program_args(server: Server) -> Server | None:
             return None
 
     # Now check if the server satisfies the required raid size
-    all_disks = [it for it in server.hdd_disks + server.sata_disks + server.nvme_disks]
+    all_disks = server.all_disks
     if not all_disks:
         return None
 
+    if program_args.disk_enterprise:
+        if server.disks["hdd"] or server.disks["ssd"]:
+            return None
+
     min_disk_size = min(all_disks)
 
-    raid0_size = sum(all_disks)
-    raid1_size = min_disk_size * len(all_disks) // 2
-    raid5_size = min_disk_size * (len(all_disks) - 1)
-    raid6_size = min_disk_size * (len(all_disks) - 2)
+    def cant_raid0(size: int | None) -> bool:
+        return size is not None and sum(all_disks) < size
 
-    cant_raid1 = lambda size: size and raid1_size < size
-    cant_raid5 = lambda size: size and (len(all_disks) < 3 or raid5_size < size)
-    cant_raid6 = lambda size: size and (len(all_disks) < 4 or raid6_size < size)
+    def cant_raid1(size: int | None) -> bool:
+        return size is not None and min_disk_size * (len(all_disks) // 2) < size
 
-    if (it := program_args.disk_size_redundant) and cant_raid1(it) and cant_raid5(it) and cant_raid6(it):
+    def cant_raid5(size: int | None) -> bool:
+        return size is not None and (len(all_disks) < 3 or min_disk_size * (len(all_disks) - 1) < size)
+
+    def cant_raid6(size: int | None) -> bool:
+        return size is not None and (len(all_disks) < 4 or min_disk_size * (len(all_disks) - 2) < size)
+
+    if (it := program_args.disk_size_redundant) is not None and cant_raid1(it) and cant_raid5(it) and cant_raid6(it):
         return None
     else:
-        if cant_raid1(program_args.disk_size_raid1):
-            return None
-        if cant_raid5(program_args.disk_size_raid5):
-            return None
-        if cant_raid6(program_args.disk_size_raid6):
-            return None
+        for i in [0, 1, 5, 6]:
+            if eval(f"cant_raid{i}(program_args.disk_size_raid{i})"):
+                return None
 
     # Finally, check for specials
     if program_args.ipv4 and not server.specials.has_IPv4:
@@ -371,7 +376,7 @@ def filter_server_with_program_args(server: Server) -> Server | None:
         return None
     if program_args.inic and not server.specials.has_iNIC:
         return None
-    if program_args.ecc and not server.specials.has_ECC:
+    if program_args.ecc and not server.ram_is_ecc:
         return None
     if program_args.hwr and not server.specials.has_HWR:
         return None
