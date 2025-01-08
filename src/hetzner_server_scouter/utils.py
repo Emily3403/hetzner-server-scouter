@@ -70,11 +70,13 @@ def parse_args() -> Namespace:
     filter_group.add_argument("--ram", metavar="<GB>", type=int, help="Filter by RAM size")
 
     disk_group = parser.add_argument_group("Disks")
-    disk_group.add_argument("--disk-num", metavar="<num>", type=int, help="The number of disks the server should have")
+    disk_group.add_argument("--disk-num", metavar="<num>", type=int, help="The exact number of disks the server should have")
+    disk_group.add_argument("--disk-num-exact", metavar="<num>", type=int, help="The minimum number of disks the server should have")
     disk_group.add_argument("--disk-num-quick", metavar="<num>", type=int, help="The number of SATA / NVME disks the server should have")
     disk_group.add_argument("--disk-enterprise", action="store_true", help="If all disks should be enterprise grade")
     disk_group.add_argument("--disk-size", metavar="<size>", type=int, help="The minimum size (in GB) of *each* disk")
     disk_group.add_argument("--disk-size-any", metavar="<size>", type=int, help="The minimum size (in GB) of any disk")
+    disk_group.add_argument("--disk-size-exact", metavar="<size>", type=int, help="The exact size (in GB) of *each* disk")
     disk_group.add_argument("--disk-size-raid0", metavar="<size>", type=int, help="Set the minimum size (in GB) of the resulting RAID when using all the drives")
     disk_group.add_argument("--disk-size-redundant", metavar="<size>", type=int, help="Set the minimum size of a redundant disk configuration if you don't care about if it is 1 / 5 / 6")
     disk_group.add_argument("--disk-size-raid1", metavar="<size>", type=int)
@@ -325,15 +327,20 @@ def filter_server_with_program_args(server: Server) -> Server | None:
     if program_args.disk_num and num_quick_disks + len(server.all_hdds) < program_args.disk_num:
         return None
 
-    if program_args.disk_num_quick and num_quick_disks < program_args.disk_num_quick:
+    if program_args.disk_num_exact and num_quick_disks + len(server.all_hdds) != program_args.disk_num_exact:
         return None
 
-    if program_args.disk_size or program_args.disk_size_any:
+    if program_args.disk_num_quick and num_quick_disks != program_args.disk_num_quick:
+        return None
+
+    if program_args.disk_size or program_args.disk_size_any or program_args.disk_size_exact:
         max_size_seen = 0
         for disk in server.all_disks:
             max_size_seen = max(max_size_seen, disk)
 
             if program_args.disk_size and disk < program_args.disk_size:
+                return None
+            if program_args.disk_size_exact and disk != program_args.disk_size_exact:
                 return None
 
         if program_args.disk_size_any and max_size_seen < program_args.disk_size_any:

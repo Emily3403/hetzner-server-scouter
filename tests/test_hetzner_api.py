@@ -84,11 +84,19 @@ async def test_download_servers_disk_num(data: dict[str, Any]) -> None:
 
 
 @pytest.mark.asyncio
+async def test_download_servers_disk_num_exact(data: dict[str, Any]) -> None:
+    servers = await HetznerTest([{"disk_num_exact": 3}, {"disk_num_exact": 2}, {"disk_num_exact": 1}]).download_servers(data, increasing=None)
+    assert all(len(server.all_disks) == 3 for server in servers[0])
+    assert all(len(server.all_disks) == 2 for server in servers[1])
+    assert all(len(server.all_disks) == 1 for server in servers[2])
+
+
+@pytest.mark.asyncio
 async def test_download_servers_fast_disk(data: dict[str, Any]) -> None:
-    servers = await HetznerTest([{"disk_num_quick": 3}, {"disk_num_quick": 2}, {"disk_num_quick": 1}]).download_servers(data)
-    assert all(len(server.all_ssds) >= 3 for server in servers[0])
-    assert all(len(server.all_ssds) >= 2 for server in servers[1])
-    assert all(len(server.all_ssds) >= 1 for server in servers[2])
+    servers = await HetznerTest([{"disk_num_quick": 3}, {"disk_num_quick": 2}, {"disk_num_quick": 1}]).download_servers(data, increasing=None)
+    assert all(len(server.all_ssds) == 3 for server in servers[0])
+    assert all(len(server.all_ssds) == 2 for server in servers[1])
+    assert all(len(server.all_ssds) == 1 for server in servers[2])
 
 
 @pytest.mark.asyncio
@@ -105,6 +113,14 @@ async def test_download_disk_size_any(data: dict[str, Any]) -> None:
     assert all(any(disk >= 7000 for disk in server.all_disks) for server in servers[0])
     assert all(any(disk >= 5000 for disk in server.all_disks) for server in servers[0])
     assert all(any(disk >= 3000 for disk in server.all_disks) for server in servers[0])
+
+
+@pytest.mark.asyncio
+async def test_download_disk_size_exact(data: dict[str, Any]) -> None:
+    servers = await HetznerTest([{"disk_size_exact": 7000}, {"disk_size_exact": 5000}, {"disk_size_exact": 3000}]).download_servers(data)
+    assert all(all(disk == 7000 for disk in server.all_disks) for server in servers[0])
+    assert all(all(disk == 5000 for disk in server.all_disks) for server in servers[0])
+    assert all(all(disk == 3000 for disk in server.all_disks) for server in servers[0])
 
 
 @pytest.mark.asyncio
