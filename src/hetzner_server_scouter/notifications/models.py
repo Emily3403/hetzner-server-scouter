@@ -114,12 +114,12 @@ class ServerChange:
         location = Datacenters.from_data(self.attrs.get("datacenter"))
         specs = f"""CPU: {self.attrs.get("cpu_name")}
 RAM: {self.attrs.get("ram_size")}GB ({self.attrs.get("ram_num")}× {self.attrs.get("ram_size", 0) // self.attrs.get("ram_num", 1)}GB{', ECC' if self.attrs.get('ram_is_ecc') else ''})
-Disks: {', '.join(
-            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("hdd", []), "HDD") +
-            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("ssd", []), "SSD") +
-            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("enterprise_hdd", []), "Enterprise HDD") +
-            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("enterprise_ssd", []), "Enterprise SSD")
-        )}"""
+Disks: {', '.join(filter(lambda it: it, [
+            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("hdd", []), "HDD"),
+            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("ssd", []), "SSD"),
+            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("enterprise_hdd", []), "Enterprise HDD"),
+            hetzner_notify_format_disks(self.attrs.get('disks', {}).get("enterprise_ssd", []), "Enterprise SSD"),
+        ]))}"""
 
         return ServerChangeMessage(self.server_id, was_sold, header, url, price, price_decreases_in, specs, specials, location)
 

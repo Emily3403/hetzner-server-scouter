@@ -391,11 +391,11 @@ def filter_server_with_program_args(server: Server) -> Server | None:
     return server
 
 
-def hetzner_notify_format_disks(disks: list[int], kind: str) -> list[str]:
-    return [
-        f"{disks.count(disk)}× {f'{round(disk / 1000, 1)}TB' if disk >= 1000 else f'{disk}GB'} ({kind})"
-        for disk in sorted(set(disks))
-    ]
+def hetzner_notify_format_disks(disks: list[int], kind: str) -> str:
+    if not disks:
+        return ""
+
+    return ", ".join(f"{disks.count(disk)}× {f'{round(disk / 1000, 1)}TB' if disk >= 1000 else f'{disk}GB'}" for disk in sorted(set(disks))) + f" ({kind})"
 
 
 def hetzner_notify_calculate_price_time_decrease(time_of_next_price_reduce: datetime | None) -> str:
