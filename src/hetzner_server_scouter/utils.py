@@ -19,7 +19,7 @@ from typing import TypeVar, Callable, Iterable, Any, TYPE_CHECKING
 
 import requests
 
-from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters, error_text
+from hetzner_server_scouter.settings import is_linux, is_macos, is_testing, is_windows, working_dir_location, database_url, Datacenters, error_text, get
 from hetzner_server_scouter.version import __version__
 
 if TYPE_CHECKING:
@@ -60,6 +60,7 @@ def parse_args() -> Namespace:
     parser.add_argument("-v", "--verbose", help="Make the application more verbose", action="count", default=0)
     parser.add_argument("-d", "--debug", help="Debug the application (triggers debug asserts and highest log level)", action="store_true")
     parser.add_argument("-V", "--version", help="Print the version", action="store_true")
+    parser.add_argument("-4", "--force-ipv4", help="Forces IPv4 for networks that don't support v6", action="store_true")
 
     parser.add_argument("--tax", metavar="<tax>", type=int, action=Percentage, default=19, help="Set the tax rate  [default: 19]")
 
@@ -99,6 +100,9 @@ def parse_args() -> Namespace:
     # Now modify the arguments based on each other
     if parsed_args.debug:
         parsed_args.verbose = 3
+
+    if parsed_args.force_ipv4:
+        requests.packages.urllib3.util.connection.HAS_IPV6 = False  # type:ignore[attr-defined]  # the import is dynamic and can't be statically analyzed
 
     return parsed_args
 
@@ -295,8 +299,8 @@ def filter_none(it: list[T | None]) -> list[T]:
 # --- Hetzner API ---
 
 def get_hetzner_ipv4_price() -> float | None:
-    req = requests.get("https://docs.hetzner.com/de/general/others/ipv4-pricing/", headers={"User-Agent": "Mozilla/5.0"})
-    if not req.ok:
+    req = get("https://docs.hetzner.com/de/general/others/ipv4-pricing/")
+    if req is None or not req.ok:
         return None
 
     it = re.search(r"Primäre IPv4[\w</>\s]*(\d,\d\d)\s*€ pro Monat", req.text)

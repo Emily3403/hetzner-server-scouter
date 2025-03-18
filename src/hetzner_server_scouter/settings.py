@@ -83,17 +83,23 @@ database_verbose_sql = False
 
 hetzner_api_url = "https://www.hetzner.com/_resources/app/jsondata/live_data_sb.json"
 hetzner_api_get_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
+hetzner_api_retry_count = 5
+
+
+def get(url: str) -> Any | None:
+    for i in range(hetzner_api_retry_count):
+        try:
+            return requests.get(url, headers=hetzner_api_get_headers)
+        except Exception as ex:
+            print(f"Error fetching API: {ex}")
+
+    return None
 
 
 def get_hetzner_api() -> dict[str, Any] | None:
     """Fetches the live hetzner data, pretending to be a Chrome instance from Windows 10."""
-
-    response = requests.get(
-        "https://www.hetzner.com/_resources/app/data/app/live_data_sb_EUR.json",
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
-    )
-
-    if not response.ok:
+    response = get("https://www.hetzner.com/_resources/app/data/app/live_data_sb_EUR.json")
+    if response is None or not response.ok:
         return None
 
     return cast(dict[str, Any], response.json())
